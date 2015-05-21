@@ -17,7 +17,7 @@ public class BayesNetEstimate {
 
 		boolean debug = true;
 
-		BayesNetwork b = new BayesNetwork(args[0]);
+		BayesNetwork b = new BayesNetwork(args[0], args[1]);
 
 		if (debug) {
 			System.out.println('\n' + "Nodes Network" + '\n');

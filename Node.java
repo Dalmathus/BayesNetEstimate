@@ -42,6 +42,7 @@ public class Node {
 	/**
 	// Getters and Setters
 	**/
+	
 	public String getName() { return this.name; }
 	public void setName(String n) { this.name = n; }
 

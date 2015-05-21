@@ -7,8 +7,9 @@ public class BayesNetwork {
 	private Node[] nodes;
 	private HashMap<String, Integer> events;
 
-	public BayesNetwork(String f, String N) throws FileNotFoundException {
+	public BayesNetwork(String f, String k) throws FileNotFoundException {
 		createNetwork(f);
+		findEvents(k);
 	}
 
 	/**
@@ -61,6 +62,45 @@ public class BayesNetwork {
 	**/
 	private void findEvents(String filename) throws FileNotFoundException {
 		Scanner sc = createScanner(filename);
+		int lineCount = 0;
+
+		String[] split = parseLine(sc.nextLine());
+		int n = split.length;
+
+		csvEventParser cp = new csvEventParser(n);
+
+		// fill the keyword array with all keyword names
+		for (int i = 0; i < n; i++) {
+			cp.addKeyword(split[i], i);
+		}
+
+		while (sc.hasNext()){
+			lineCount++;
+			split = parseLine(sc.nextLine());
+			for (int i = 0; i < n; i++) {
+				if (split[i].equals("1")) 
+					cp.incrementKeyword(i);
+			}
+		}
+
+		System.out.println(lineCount);
+		cp.printCounts();
+
+	}
+
+	/**
+	//	Find probability of key words being spam given we know if email was spam
+	//	@param N number of samples
+	**/
+	private void findProbs(int N) {
+
+	}
+
+	/**
+	// Just a simple method to split on comma so I can do a nextLine operation and split into an array in one tidy line
+	**/
+	private String[] parseLine(String s) {
+		return s.split(",");
 	}
 
 	/**
@@ -69,13 +109,16 @@ public class BayesNetwork {
 	// @return the number of lines in file
 	**/
 	private int countLines(Scanner sc) {
-
 		int count = 0;
 		while (sc.hasNext()) {
 			sc.nextLine();
 			count++;
 		}
 		return count;
+	}
+
+	private int countWords(String s) {
+		return 0;
 	}
 
 	/**
@@ -92,6 +135,7 @@ public class BayesNetwork {
 	/**
 	// Getters and Setters
 	**/
+
 	public void setNodes(Node[] n) { this.nodes = n; }
 	public Node[] getNodes() { return this.nodes; }
 
