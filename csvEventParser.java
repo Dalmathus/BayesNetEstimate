@@ -14,7 +14,8 @@ public class csvEventParser {
 	**/
 	public csvEventParser(int N){
 		keywords = new String[N];
-		count = new int[N];
+		Tcount = new int[N];
+		Fcount = new int[N];
 		// Initialize all counts to 1 to avoid the zero ferquency problem
 		for (int i = 0; i < N; Fcount[i]++, Tcount[i]++, i++);
 	}
@@ -32,9 +33,9 @@ public class csvEventParser {
 	//	@param s the keyword in keywords[] I want the count for
 	//	@return the number of times s has appeared in the csv
 	**/
-	public int[] getKeywordCount(String s) {
+	public double[] getKeywordCount(String s) {
 
-		int[] output = new int[2];
+		double[] output = new double[2];
 
 		for (int i = 0; i < keywords.length; i++) {
 			if (keywords[i].equals(s)) {
@@ -62,14 +63,28 @@ public class csvEventParser {
 		}
 	}
 
+	public int trueSamples(int i) {
+		return Tcount[i];
+	}
+
+	public int falseSamples(int i) {
+		return Fcount[i];
+	}
+
+	public int allSamples(int i) {
+		return Tcount[i] + Fcount[i];
+	}
+
 	/**
 	//	@return sum of all counts returning sample size
 	**/
 	public int eventSamples() {
 		int n = 0;
 
-		for (int i : count) 
-			n += i;
+		for (int i = 0; i < keywords.length; i++){
+			n += Tcount[i];
+			n += Fcount[i];
+		}
 
 		return n;
 	}

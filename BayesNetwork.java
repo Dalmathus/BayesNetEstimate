@@ -78,10 +78,14 @@ public class BayesNetwork {
 			lineCount++;
 			split = parseLine(sc.nextLine());
 			for (int i = 0; i < n; i++) {
-				if (split[i].equals("1")) 
-					cp.incrementKeyword(i);
+				cp.incrementKeyword(i, split[i]);
 			}
 		}
+
+		double[] res = cp.getKeywordCount("spam");
+		double total = res[0] + res[1];
+		
+		System.out.println("P(Spam): T: " + (res[0] / total) + " F: " + (res[1] / total));
 
 		System.out.println(lineCount);
 		cp.printCounts();
