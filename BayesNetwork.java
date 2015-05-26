@@ -5,11 +5,13 @@ import java.io.*;
 public class BayesNetwork {
 
 	private Node[] nodes;
+	private csvEventParser cp;
 	private HashMap<String, Integer> events;
 
 	public BayesNetwork(String f, String k) throws FileNotFoundException {
 		createNetwork(f);
 		findEvents(k);
+		calcProbs(nodes.length);
 	}
 
 	/**
@@ -67,7 +69,7 @@ public class BayesNetwork {
 		String[] split = parseLine(sc.nextLine());
 		int n = split.length;
 
-		csvEventParser cp = new csvEventParser(n);
+		cp = new csvEventParser(n);
 
 		// fill the keyword array with all keyword names
 		for (int i = 0; i < n; i++) {
@@ -84,20 +86,34 @@ public class BayesNetwork {
 
 		double[] res = cp.getKeywordCount("spam");
 		double total = res[0] + res[1];
-		
-		System.out.println("P(Spam): T: " + (res[0] / total) + " F: " + (res[1] / total));
-
-		System.out.println(lineCount);
-		cp.printCounts();
 
 	}
 
 	/**
 	//	Find probability of key words being spam given we know if email was spam
-	//	@param N number of samples
+	//	@param N number of nodes
 	**/
-	private void findProbs(int N) {
+	private void calcProbs(int N) {
 
+		double[] tfCount;
+
+		for (int i = 0; i < N; i++) {
+
+			tfCount = cp.getKeywordCount(nodes[i].getName());
+			if (tfCount.length == 0) continue;
+
+			// Sum the false and true counts to save on line space
+			double total = tfCount[0] + tfCount[1];
+
+			// If the node in question is an orphan just calculate basic odds of the event being true or not
+			if (nodes[i].getParents().length == 0) {
+				double[] probs = new double[2];
+				probs[0] = tfCount[0] / total;
+				probs[1] = tfCount[1] / total;
+				nodes[i].setProbs(probs);
+				System.out.println(nodes[i].getName() + " " + nodes[i].getProbs()[0] + " " + nodes[i].getProbs()[1]);
+			}
+		}
 	}
 
 	/**

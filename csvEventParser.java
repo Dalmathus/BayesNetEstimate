@@ -35,10 +35,11 @@ public class csvEventParser {
 	**/
 	public double[] getKeywordCount(String s) {
 
-		double[] output = new double[2];
+		double[] output = new double[0];
 
 		for (int i = 0; i < keywords.length; i++) {
 			if (keywords[i].equals(s)) {
+				output = new double[2];
 				output[0] = Tcount[i];
 				output[1] = Fcount[i];
 			} 			
