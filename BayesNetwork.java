@@ -6,16 +6,18 @@ public class BayesNetwork {
 
 	private Node[] nodes;
 	private csvEventParser cp;
-	private HashMap<String, Integer> events;
 
 	public BayesNetwork(String f, String k) throws FileNotFoundException {
 		createNetwork(f);
-		findEvents(k);
+		Scanner sc = createScanner(k);
+		String[] words = sc.nextLine().split(",");
+		cp = new csvEventParser(words.length, k);
 		calcProbs(nodes.length);
 	}
 
 	/**
 	// Creates a Network from a given .str file
+	// @return number of nodes in network
 	**/
 	private void createNetwork(String filename) throws FileNotFoundException {
 
@@ -38,7 +40,7 @@ public class BayesNetwork {
 			s = line.split(":");
 			
 			// If the node has parents I need to find those nodes in the list of nodes I have already created
-			if (s[1] != null) { 
+			if (s.length > 1) { 
 				
 				p = s[1].split(" "); 
 				
@@ -55,50 +57,18 @@ public class BayesNetwork {
 				nodes[i] = new Node(s[0], r); 
 			}
 			else nodes[i] = new Node(s[0], new Node[] {});
-		}
+		}		
 	} 
-
-	/**
-	//	Sums all events parsed from the csv file provided into a HashMap to calculate probabilites of nodes
-	//	@param filename the csv file contatining frequency data
-	**/
-	private void findEvents(String filename) throws FileNotFoundException {
-		Scanner sc = createScanner(filename);
-		int lineCount = 0;
-
-		String[] split = parseLine(sc.nextLine());
-		int n = split.length;
-
-		cp = new csvEventParser(n);
-
-		// fill the keyword array with all keyword names
-		for (int i = 0; i < n; i++) {
-			cp.addKeyword(split[i], i);
-		}
-
-		while (sc.hasNext()){
-			lineCount++;
-			split = parseLine(sc.nextLine());
-			for (int i = 0; i < n; i++) {
-				cp.incrementKeyword(i, split[i]);
-			}
-		}
-
-		double[] res = cp.getKeywordCount("spam");
-		double total = res[0] + res[1];
-
-	}
 
 	/**
 	//	Find probability of key words being spam given we know if email was spam
 	//	@param N number of nodes
 	**/
 	private void calcProbs(int N) {
-
-		double[] tfCount;
-
 		for (int i = 0; i < N; i++) {
-
+			
+			double[] tfCount;
+			int index = cp.getKeywordIndex(nodes[i].getName());
 			tfCount = cp.getKeywordCount(nodes[i].getName());
 			if (tfCount.length == 0) continue;
 
@@ -113,16 +83,130 @@ public class BayesNetwork {
 				nodes[i].setProbs(probs);
 				System.out.println(nodes[i].getName() + " " + nodes[i].getProbs()[0] + " " + nodes[i].getProbs()[1]);
 			}
+			else {
+				// to save space I will make the length of parents a variable
+				int length = nodes[i].getParents().length;
+
+				// storage boolean for child truth value
+				boolean childVal;
+
+				// index of truth configuration from binary string
+				int binaryIndex;
+
+				// get the indexed locations of the keywords in events
+				int[] parentIndex = new int[length];
+				int childIndex = cp.getKeywordIndex(nodes[i].getName());
+				for (int j = 0; j < length; j++) {
+					parentIndex[j] = cp.getKeywordIndex(nodes[i].getParents()[j].getName());
+				}
+
+				// create the string builder to make our 'binary' number
+				StringBuilder sb;
+
+				// create the final truth values for each possibility
+				double[] probs = new double[(int)Math.pow(2, length)];
+
+				// create the probability array to store true and false results
+				double[][] data = new double[probs.length][2];
+
+				// set all values to 1 to avoid the zero frequency problem
+				for (int k = 0; k < probs.length; k++) {
+					data[k][0]++;
+					data[k][1]++;
+				}
+
+				// for each atomic event build the binary string
+				for (String[] sa : cp.getEvents()) {
+					sb = new StringBuilder();
+					for (int j = 0; j < parentIndex.length; j++) {
+						if (sa[parentIndex[j]].equals("1")) sb.append("1");
+						// need to make this else if instead of else for the unknown case '?'
+						else if (sa[parentIndex[j]].equals("0")) sb.append("0");
+					}
+					// find the truth value of our child
+					if (sa[childIndex].equals("1")) childVal = true;
+					else childVal = false;
+
+					// now that the string is built we have a binary representation of the index
+					binaryIndex = Integer.parseInt(sb.toString(), 2);
+
+					// if Child is true increment the true column '0' vice versa false
+					if (childVal) data[binaryIndex][1]++;
+					else data[binaryIndex][0]++;
+				} 
+
+				for (int k = 0; k < probs.length; k++) {
+					probs[k] = data[k][1] / (data[k][0] + data[k][1]);
+				}
+
+				nodes[i].setProbs(probs);
+
+				System.out.println();
+				System.out.print("P(" + nodes[i].getName() + "|");
+					for (Node n : nodes[i].getParents()) System.out.print(n.getName() + ",");
+				System.out.print(")");
+				System.out.println();
+
+				for (double d : probs) System.out.print(d + " ");
+			}
 		}
 	}
 
 	/**
-	// Just a simple method to split on comma so I can do a nextLine operation and split into an array in one tidy line
+	//	Write nodes and probabilities out to output.txt
 	**/
-	private String[] parseLine(String s) {
-		return s.split(",");
+	public void toFile() throws IOException {
+		File output = new File("output.txt");
+		FileWriter fw = new FileWriter(output);
+		BufferedWriter bw = new BufferedWriter(fw);
+
+		// output name and parents
+		for (Node n : nodes) {
+			double[] probs = n.getProbs();			
+			bw.write(n.getName() + ":");
+
+			if (n.getParents().length == 0) {
+				bw.newLine();
+				bw.write("0 " + String.format("%.5f", probs[1]) + '\n'  + "1 " + String.format("%.5f", probs[0]));
+				bw.newLine();
+				bw.newLine();
+			}
+			else {
+				bw.newLine();
+				for (Node p : n.getParents()) {
+					bw.write(p.getName() + " ");
+				}
+				bw.newLine();
+
+			// create binaryString representation
+				int size = n.getParents().length;				
+				for (int i = 0; i < Math.pow(2, size); i++) {
+					String binaryString = Integer.toString(i, 2);
+					while (binaryString.length() < size) {
+						binaryString = "0" + binaryString;
+					}
+					bw.write(binaryString + " ");
+					bw.write(String.format("%.5f", probs[i]));
+					bw.newLine();
+				}
+				bw.newLine();
+			}
+		}
+		bw.close();
 	}
 
+	/**
+	//	creates a scanner object for parsing a text file
+	//	@param filename
+	**/
+	private Scanner createScanner(String filename) throws FileNotFoundException {
+		String workingDirectory = System.getProperty("user.dir");
+        File tempFile = new File(workingDirectory + File.separator + filename);
+		Scanner sc = new Scanner(tempFile);
+		return sc;
+	}
+
+	//	TODO: Move this and other scanner related methods into a static class to handle IO reading
 	/**
 	//	Counts the number of lines in a file through a scanner object
 	// @param sc a scanner object with the file already loaded into it
@@ -137,29 +221,10 @@ public class BayesNetwork {
 		return count;
 	}
 
-	private int countWords(String s) {
-		return 0;
-	}
-
-	/**
-	//	creates a scanner object for parsing a text file
-	//	@param filename
-	**/
-	private Scanner createScanner(String filename) throws FileNotFoundException {
-		String workingDirectory = System.getProperty("user.dir");
-        File tempFile = new File(workingDirectory + File.separator + filename);
-		Scanner sc = new Scanner(tempFile);
-		return sc;
-	}
-
 	/**
 	// Getters and Setters
 	**/
 
 	public void setNodes(Node[] n) { this.nodes = n; }
 	public Node[] getNodes() { return this.nodes; }
-
-	public void setEvents(HashMap<String, Integer> h) { this. events = h; }
-	public HashMap<String, Integer> getEvents() { return this.events; }
-
 }

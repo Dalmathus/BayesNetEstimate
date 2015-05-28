@@ -11,13 +11,14 @@ import java.io.*;
 
 public class BayesNetEstimate {
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws IOException {
 		
-		if (args.length == 0) System.exit(0);
+		if (args.length == 0 || args.length > 2) System.exit(0);
 
 		boolean debug = true;
 
 		BayesNetwork b = new BayesNetwork(args[0], args[1]);
+		b.toFile();
 
 		if (debug) {
 			System.out.println('\n' + "Nodes Network" + '\n');

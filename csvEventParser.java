@@ -1,10 +1,14 @@
+import java.io.*;
+import java.util.*;
 
 /**
 //	This class creates a list of keywords and a count of ho wmany times that keyword shows up in a csv file
 **/
 public class csvEventParser {
-	
-	private String[] keywords;
+
+	String csvFile;
+	private String[][] events;
+	private String[] keywords;	
 	private int[] Tcount;
 	private int[] Fcount;
 
@@ -12,12 +16,44 @@ public class csvEventParser {
 	//	Initialize the array to the number of events found inside a csv and update each count ot start at 1
 	//	@param N count of unique keywords
 	**/
-	public csvEventParser(int N){
+	public csvEventParser(int N, String filename) throws FileNotFoundException {
+		csvFile = filename;
 		keywords = new String[N];
 		Tcount = new int[N];
 		Fcount = new int[N];
 		// Initialize all counts to 1 to avoid the zero ferquency problem
 		for (int i = 0; i < N; Fcount[i]++, Tcount[i]++, i++);
+		findEvents();
+	}
+
+	/**
+	//	Sums all events parsed from the csv file provided into a HashMap to calculate probabilites of nodes
+	//	@param filename the csv file contatining frequency data
+	**/
+	private void findEvents() throws FileNotFoundException {
+		Scanner sc = createScanner(csvFile);
+		int lineCount = countLines(sc);
+
+		sc = createScanner(csvFile);
+		String[] split = parseLine(sc.nextLine());
+		int n = split.length;
+
+		events = new String[lineCount - 1][n];
+
+		// fill the keyword array with all keyword names
+		for (int i = 0; i < n; i++) {
+			addKeyword(split[i], i);
+		}
+
+		int j = 0;
+		while (sc.hasNext()){
+			split = parseLine(sc.nextLine());
+			for (int i = 0; i < n; i++) {
+				events[j][i] = split[i];
+				incrementKeyword(i, split[i]);
+			}
+			j++;
+		}
 	}
 
 	/**
@@ -27,6 +63,13 @@ public class csvEventParser {
 	public void incrementKeyword(int i, String val) {
 		if (val.equals("1")) Tcount[i]++;
 		else if (val.equals("0")) Fcount[i]++;
+	}
+
+	public int getKeywordIndex(String s) {
+		for (int i = 0; i < keywords.length; i++) {
+			if (s.equals(keywords[i])) return i;
+		}
+		return -1;
 	}
 
 	/**
@@ -47,6 +90,10 @@ public class csvEventParser {
 		return output;
 	}
 
+	public void recordEvent(String[] event, int index) {
+		
+	}
+
 	/**
 	//	@param s new keyword to add
 	//	@param index typically first empty value in the keywords[]
@@ -64,16 +111,40 @@ public class csvEventParser {
 		}
 	}
 
-	public int trueSamples(int i) {
-		return Tcount[i];
+	public int trueSamples(int i) { return Tcount[i]; }
+	public int falseSamples(int i) { return Fcount[i]; }
+	public int allSamples(int i) { return Tcount[i] + Fcount[i]; }
+
+	/**
+	//	creates a scanner object for parsing a text file
+	//	@param filename
+	**/
+	private Scanner createScanner(String filename) throws FileNotFoundException {
+		String workingDirectory = System.getProperty("user.dir");
+        File tempFile = new File(workingDirectory + File.separator + filename);
+		Scanner sc = new Scanner(tempFile);
+		return sc;
 	}
 
-	public int falseSamples(int i) {
-		return Fcount[i];
+	/**
+	// Just a simple method to split on comma so I can do a nextLine operation and split into an array in one tidy line
+	**/
+	private String[] parseLine(String s) {
+		return s.split(",");
 	}
 
-	public int allSamples(int i) {
-		return Tcount[i] + Fcount[i];
+	/**
+	//	Counts the number of lines in a file through a scanner object
+	// @param sc a scanner object with the file already loaded into it
+	// @return the number of lines in file
+	**/
+	private int countLines(Scanner sc) {
+		int count = 0;
+		while (sc.hasNext()) {
+			sc.nextLine();
+			count++;
+		}
+		return count;
 	}
 
 	/**
@@ -88,5 +159,9 @@ public class csvEventParser {
 		}
 
 		return n;
+	}
+
+	public String[][] getEvents() {
+		return events;
 	}
 }

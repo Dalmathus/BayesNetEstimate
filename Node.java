@@ -13,7 +13,7 @@ public class Node {
 
 	// The current value of the node
 	private boolean value;
-		
+
 	/**
 	//	A node inside a Bayes Network, each node has 
 	//	a name to identify it
@@ -23,8 +23,8 @@ public class Node {
 	//	only name and parent lists are required
 	**/
 	public Node(String n, Node[] pa) {
-			name = n;
-			parents = pa;
+		name = n;
+		parents = pa;
 	}
 
 	/**
@@ -37,6 +37,21 @@ public class Node {
 			System.out.print(n.getName() + " ");
 		}
 		System.out.println();
+	}
+
+	/**
+	// Returns conditional probability of value "true" for the current node
+	// based on the values of the parent nodes.
+	// @return The conditional probability of this node, given its parents.
+	**/
+	public double conditionalProbability() {
+		int index = 0;		
+		for (int i = 0; i < parents.length; i++) {
+			if (parents[i].value == false) {
+				index += Math.pow(2, parents.length - i - 1);
+			}
+		}	
+		return probs[index];
 	}
 
 	/**
