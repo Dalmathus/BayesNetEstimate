@@ -11,16 +11,12 @@ public class Node {
 	// The probabilities for the CPT
 	private double[] probs;
 
-	// The current value of the node
-	private boolean value;
-
 	/**
 	//	A node inside a Bayes Network, each node has 
 	//	a name to identify it
 	//	a list of parents
 	//	a list of probabilities given its parents
-	// 	and a value the node is currently set to
-	//	only name and parent lists are required
+	//	only name and parent lists are required on creation
 	**/
 	public Node(String n, Node[] pa) {
 		name = n;
@@ -40,21 +36,6 @@ public class Node {
 	}
 
 	/**
-	// Returns conditional probability of value "true" for the current node
-	// based on the values of the parent nodes.
-	// @return The conditional probability of this node, given its parents.
-	**/
-	public double conditionalProbability() {
-		int index = 0;		
-		for (int i = 0; i < parents.length; i++) {
-			if (parents[i].value == false) {
-				index += Math.pow(2, parents.length - i - 1);
-			}
-		}	
-		return probs[index];
-	}
-
-	/**
 	// Getters and Setters
 	**/
 	
@@ -66,7 +47,4 @@ public class Node {
 
 	public double[] getProbs() { return this.probs; }
 	public void setProbs(double[] p) { this.probs = p; }
-
-	public boolean getValue() { return this.value; }
-	public void setValue(boolean v) { this.value = v; }
 }

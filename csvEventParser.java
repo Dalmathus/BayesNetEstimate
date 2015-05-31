@@ -31,11 +31,11 @@ public class csvEventParser {
 	//	@param filename the csv file contatining frequency data
 	**/
 	private void findEvents() throws FileNotFoundException {
-		Scanner sc = createScanner(csvFile);
-		int lineCount = countLines(sc);
+		Scanner sc = IO.createScanner(csvFile);
+		int lineCount = IO.countLines(sc);
 
-		sc = createScanner(csvFile);
-		String[] split = parseLine(sc.nextLine());
+		sc = IO.createScanner(csvFile);
+		String[] split = IO.parseLine(sc.nextLine());
 		int n = split.length;
 
 		events = new String[lineCount - 1][n];
@@ -47,7 +47,7 @@ public class csvEventParser {
 
 		int j = 0;
 		while (sc.hasNext()){
-			split = parseLine(sc.nextLine());
+			split = IO.parseLine(sc.nextLine());
 			for (int i = 0; i < n; i++) {
 				events[j][i] = split[i];
 				incrementKeyword(i, split[i]);
@@ -65,11 +65,22 @@ public class csvEventParser {
 		else if (val.equals("0")) Fcount[i]++;
 	}
 
+	/**
+	//	@return the index of the given 
+	**/
 	public int getKeywordIndex(String s) {
 		for (int i = 0; i < keywords.length; i++) {
 			if (s.equals(keywords[i])) return i;
 		}
 		return -1;
+	}
+
+	/**
+	//	@param i index of keyword
+	// 	@return the keyword at index i
+	**/
+	public String getKeywordAtIndex(int i) {
+		return keywords[i];
 	}
 
 	/**
@@ -90,8 +101,13 @@ public class csvEventParser {
 		return output;
 	}
 
-	public void recordEvent(String[] event, int index) {
-		
+	/**
+	//	Method assumes there is only ever one query node
+	//	@return returns the location of the query node for test data
+	**/
+	public int findQueryNode() {
+		for (int i = 0; i < keywords.length; i++) if (events[0][i].equals("?")) return i;
+		return -1;
 	}
 
 	/**
@@ -111,57 +127,25 @@ public class csvEventParser {
 		}
 	}
 
-	public int trueSamples(int i) { return Tcount[i]; }
-	public int falseSamples(int i) { return Fcount[i]; }
-	public int allSamples(int i) { return Tcount[i] + Fcount[i]; }
-
-	/**
-	//	creates a scanner object for parsing a text file
-	//	@param filename
-	**/
-	private Scanner createScanner(String filename) throws FileNotFoundException {
-		String workingDirectory = System.getProperty("user.dir");
-        File tempFile = new File(workingDirectory + File.separator + filename);
-		Scanner sc = new Scanner(tempFile);
-		return sc;
-	}
-
-	/**
-	// Just a simple method to split on comma so I can do a nextLine operation and split into an array in one tidy line
-	**/
-	private String[] parseLine(String s) {
-		return s.split(",");
-	}
-
-	/**
-	//	Counts the number of lines in a file through a scanner object
-	// @param sc a scanner object with the file already loaded into it
-	// @return the number of lines in file
-	**/
-	private int countLines(Scanner sc) {
-		int count = 0;
-		while (sc.hasNext()) {
-			sc.nextLine();
-			count++;
-		}
-		return count;
-	}
-
 	/**
 	//	@return sum of all counts returning sample size
 	**/
 	public int eventSamples() {
 		int n = 0;
-
 		for (int i = 0; i < keywords.length; i++){
 			n += Tcount[i];
 			n += Fcount[i];
 		}
-
 		return n;
 	}
 
-	public String[][] getEvents() {
-		return events;
-	}
+	/**
+	//	getters and setters
+	**/
+	public String[][] getEvents() { return events; }
+	public String[] getKeywords() { return keywords; }
+	public int trueSamples(int i) { return Tcount[i]; }
+	public int falseSamples(int i) { return Fcount[i]; }
+	public int allSamples(int i) { return Tcount[i] + Fcount[i]; }
+
 }

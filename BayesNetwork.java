@@ -5,14 +5,38 @@ import java.io.*;
 public class BayesNetwork {
 
 	private Node[] nodes;
+	// event parser for training data
 	private csvEventParser cp;
+	// event parser for testing data
+	private csvEventParser ct;
 
+	/**
+	//	Bayes Network constructor for only working on training data
+	//	@param f the structure file containg the node layout
+	//	@param k the comma separated file containing training data
+	**/
 	public BayesNetwork(String f, String k) throws FileNotFoundException {
 		createNetwork(f);
-		Scanner sc = createScanner(k);
+		Scanner sc = IO.createScanner(k);
 		String[] words = sc.nextLine().split(",");
 		cp = new csvEventParser(words.length, k);
 		calcProbs(nodes.length);
+	}
+
+	/**
+	//	Bayes Network constructor for dealing with testing data once trainign data is processed
+	//	@param f the structure file containg the node layout
+	//	@param k the comma separated file containing training data
+	//	@param y the comma separated file containing testing data
+	**/
+	public BayesNetwork(String f, String k, String y) throws FileNotFoundException {
+		createNetwork(f);
+		Scanner sc = IO.createScanner(k);
+		String[] words = sc.nextLine().split(",");
+		cp = new csvEventParser(words.length, k);
+		ct = new csvEventParser(words.length, y);
+		calcProbs(nodes.length);
+		guessMissing();
 	}
 
 	/**
@@ -21,7 +45,7 @@ public class BayesNetwork {
 	**/
 	private void createNetwork(String filename) throws FileNotFoundException {
 
-		Scanner sc = createScanner(filename);
+		Scanner sc = IO.createScanner(filename);
 
 		String line;
 		String[] s;
@@ -29,10 +53,10 @@ public class BayesNetwork {
 		Node[] r;
 		List<Node> parents = new ArrayList<Node>();
 
-		int c = countLines(sc);
+		int c = IO.countLines(sc);
 		nodes = new Node[c];
 
-		sc = createScanner(filename);
+		sc = IO.createScanner(filename);
 
 		for (int i = 0; i < c; i++) {
 			
@@ -81,7 +105,6 @@ public class BayesNetwork {
 				probs[0] = tfCount[0] / total;
 				probs[1] = tfCount[1] / total;
 				nodes[i].setProbs(probs);
-				System.out.println(nodes[i].getName() + " " + nodes[i].getProbs()[0] + " " + nodes[i].getProbs()[1]);
 			}
 			else {
 				// to save space I will make the length of parents a variable
@@ -94,11 +117,8 @@ public class BayesNetwork {
 				int binaryIndex;
 
 				// get the indexed locations of the keywords in events
-				int[] parentIndex = new int[length];
+				int[] parentIndex = getParentIndexes(length, i);
 				int childIndex = cp.getKeywordIndex(nodes[i].getName());
-				for (int j = 0; j < length; j++) {
-					parentIndex[j] = cp.getKeywordIndex(nodes[i].getParents()[j].getName());
-				}
 
 				// create the string builder to make our 'binary' number
 				StringBuilder sb;
@@ -140,85 +160,144 @@ public class BayesNetwork {
 				}
 
 				nodes[i].setProbs(probs);
-
-				System.out.println();
-				System.out.print("P(" + nodes[i].getName() + "|");
-					for (Node n : nodes[i].getParents()) System.out.print(n.getName() + ",");
-				System.out.print(")");
-				System.out.println();
-
-				for (double d : probs) System.out.print(d + " ");
 			}
 		}
+	}
+
+	/**
+	//	Use training data to guess the probability of missing data in a identical data set with missing truth values
+	**/
+	private void guessMissing() {
+
+		// identify the index the query node is located at
+		int queryIndex = ct.findQueryNode();
+
+		// create the Random number generator to roll from 0.0 to 1.0 this will serve to fill in our missing data
+		Random ran = new Random();
+
+		// get the keyword associated with index so we can get the nodes information
+		String queryName = ct.getKeywordAtIndex(queryIndex);
+
+		// get the query node out of the list of nodes so we can finally start working on it
+		Node queryNode = null;
+		int index = 0;
+
+		for (Node n : nodes) {
+			if (n.getName().equals(queryName)) { 
+				queryNode = n;
+				break;
+			} 
+			index++;
+		}
+
+		if (queryNode.getParents().length > 0) {
+		// by getting all the indexes of the parents of the node
+			int[] parentIndex = getParentIndexes(queryNode.getParents().length, index);
+
+			for (String[] sa : ct.getEvents()) {
+
+			// create the index of the probability that an event will happen given its parents
+				StringBuilder sb = new StringBuilder();
+				for (int k : parentIndex) {
+					sb.append(sa[k]);
+				}
+				int probIndex = Integer.parseInt(sb.toString(), 2);
+
+			// now that I have the index update the query node with its new value after creating a new random number
+			// getting a result of either true or false
+				if (ran.nextDouble() < queryNode.getProbs()[probIndex])	sa[queryIndex] = "1";
+				else sa[queryIndex] = "0";
+			}
+		}
+		else {
+		// if the node is an orphan just use its probability table for true
+			for (String[] sa : ct.getEvents()) {
+				if(ran.nextDouble() < queryNode.getProbs()[0]) sa[queryIndex] = "1";
+				else sa[queryIndex] = "0";
+			}
+		}
+	}
+
+	/**
+	//	@param l number of parents
+	//	@param i child node index in nodes
+	//	@return int[] containing all indexs of parents in the csv file
+	**/
+	private int[] getParentIndexes(int l, int i) {
+		int[] parentIndex = new int[l];		
+		for (int j = 0; j < l; j++) {
+			parentIndex[j] = cp.getKeywordIndex(nodes[i].getParents()[j].getName());
+		}
+		return parentIndex;
 	}
 
 	/**
 	//	Write nodes and probabilities out to output.txt
+	//	@param type of file to output
 	**/
-	public void toFile() throws IOException {
-		File output = new File("output.txt");
-		FileWriter fw = new FileWriter(output);
-		BufferedWriter bw = new BufferedWriter(fw);
+	public void toFile(String fileType) throws IOException {
+
+		if (fileType.equals(".txt")) {
+			File output = new File("output.txt");
+			FileWriter fw = new FileWriter(output);
+			BufferedWriter bw = new BufferedWriter(fw);
 
 		// output name and parents
-		for (Node n : nodes) {
-			double[] probs = n.getProbs();			
-			bw.write(n.getName() + ":");
+			for (Node n : nodes) {
+				double[] probs = n.getProbs();			
+				bw.write(n.getName() + ":");
 
-			if (n.getParents().length == 0) {
-				bw.newLine();
-				bw.write("0 " + String.format("%.5f", probs[1]) + '\n'  + "1 " + String.format("%.5f", probs[0]));
-				bw.newLine();
-				bw.newLine();
-			}
-			else {
-				bw.newLine();
-				for (Node p : n.getParents()) {
-					bw.write(p.getName() + " ");
+			// I PRINT OUT TRUE AND FALSE VALUES FOR ORPHAN NODES WHILE ONLY PRINTING OUT TRUE VALUES FOR OTHERS
+				if (n.getParents().length == 0) {
+					bw.newLine();
+					bw.write("0 " + String.format("%.5f", probs[1]) + '\n'  + "1 " + String.format("%.5f", probs[0]) + '\n' + '\n');
 				}
-				bw.newLine();
+				else {
+					bw.newLine();
+					for (Node p : n.getParents()) {
+						bw.write(p.getName() + " ");
+					}
+					bw.newLine();
 
 			// create binaryString representation
-				int size = n.getParents().length;				
-				for (int i = 0; i < Math.pow(2, size); i++) {
-					String binaryString = Integer.toString(i, 2);
-					while (binaryString.length() < size) {
-						binaryString = "0" + binaryString;
+					int size = n.getParents().length;				
+					for (int i = 0; i < Math.pow(2, size); i++) {
+						String binaryString = Integer.toString(i, 2);
+						while (binaryString.length() < size) {
+							binaryString = "0" + binaryString;
+						}
+						bw.write(binaryString + " ");
+						bw.write(String.format("%.5f", probs[i]));
+						bw.newLine();
 					}
-					bw.write(binaryString + " ");
-					bw.write(String.format("%.5f", probs[i]));
 					bw.newLine();
+				}
+			}
+			bw.close();
+		}
+		else if (fileType.equals(".csv")) {
+			File output = new File("completedTest.csv");
+			FileWriter fw = new FileWriter(output);
+			BufferedWriter bw = new BufferedWriter(fw);
+
+			String[] words = ct.getKeywords();
+			for (int i = 0; i < words.length; i++) {
+				bw.write(words[i]);
+				if (i != words.length - 1) bw.write(",");
+			}
+			bw.newLine();
+			for (String[] sa : ct.getEvents()) {
+					for (int i = 0; i < sa.length; i++) {
+					bw.write(sa[i]);
+					if (i != words.length - 1) bw.write(",");
 				}
 				bw.newLine();
 			}
+			bw.close();
 		}
-		bw.close();
-	}
-
-	/**
-	//	creates a scanner object for parsing a text file
-	//	@param filename
-	**/
-	private Scanner createScanner(String filename) throws FileNotFoundException {
-		String workingDirectory = System.getProperty("user.dir");
-        File tempFile = new File(workingDirectory + File.separator + filename);
-		Scanner sc = new Scanner(tempFile);
-		return sc;
-	}
-
-	//	TODO: Move this and other scanner related methods into a static class to handle IO reading
-	/**
-	//	Counts the number of lines in a file through a scanner object
-	// @param sc a scanner object with the file already loaded into it
-	// @return the number of lines in file
-	**/
-	private int countLines(Scanner sc) {
-		int count = 0;
-		while (sc.hasNext()) {
-			sc.nextLine();
-			count++;
+		else {
+			System.out.println("Improper output file type specfied, currently supported file types are .csv and .txt");
 		}
-		return count;
 	}
 
 	/**
